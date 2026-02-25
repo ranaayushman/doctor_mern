@@ -62,7 +62,7 @@ const registerUser = asyncHandler(async (req, res) => {
   const tokens = generateTokens(user._id, 'patient');
 
   // Get user data without password
-  const userData = user.toJSON();
+  const userData = { ...user.toJSON(), role: 'patient' };
 
   // Send success response
   sendSuccess(res, 201, 'Registration successful', {
@@ -110,7 +110,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const tokens = generateTokens(user._id, 'patient');
 
   // Get user data without password
-  const userData = user.toJSON();
+  const userData = { ...user.toJSON(), role: 'patient' };
 
   // Send success response
   sendSuccess(res, 200, 'Login successful', {

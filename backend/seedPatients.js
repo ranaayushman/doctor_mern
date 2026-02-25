@@ -224,8 +224,13 @@ const seedPatients = [
     // await User.deleteMany({});
     // console.log('Deleted existing patients');
 
-    // Insert patients
-    const insertedPatients = await User.insertMany(seedPatients);
+    // Insert patients one-by-one so the pre-save bcrypt hook runs on each
+    const insertedPatients = [];
+    for (const data of seedPatients) {
+      const patient = new User(data);
+      await patient.save();
+      insertedPatients.push(patient);
+    }
     console.log(`✓ Successfully seeded ${insertedPatients.length} patients!`);
     console.log('\nSeeded Patient IDs:');
     insertedPatients.forEach((patient, index) => {

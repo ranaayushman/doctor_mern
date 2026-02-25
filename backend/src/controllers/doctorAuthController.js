@@ -73,10 +73,10 @@ const registerDoctor = asyncHandler(async (req, res) => {
   const tokens = generateTokens(doctor._id, 'doctor');
 
   // Get doctor data
-  const doctorData = doctor.toJSON();
+  const doctorData = { ...doctor.toJSON(), role: 'doctor' };
 
   sendSuccess(res, 201, 'Registration successful. Awaiting admin approval.', {
-    doctor: doctorData,
+    user: doctorData,
     tokens,
     message: 'Your account has been created. Admin approval is required before you can accept appointments.',
   });
@@ -130,10 +130,10 @@ const loginDoctor = asyncHandler(async (req, res) => {
   const tokens = generateTokens(doctor._id, 'doctor');
 
   // Get doctor data
-  const doctorData = doctor.toJSON();
+  const doctorData = { ...doctor.toJSON(), role: 'doctor' };
 
   sendSuccess(res, 200, 'Login successful', {
-    doctor: doctorData,
+    user: doctorData,
     tokens,
   });
 });

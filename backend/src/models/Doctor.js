@@ -213,19 +213,11 @@ doctorSchema.index({ specialization: 1 });
 doctorSchema.index({ city: '2dsphere' }); // For geospatial queries
 
 // Hash password before saving
-doctorSchema.pre('save', async function (next) {
+doctorSchema.pre('save', async function () {
   // Only hash if password is new or modified
-  if (!this.isModified('password')) {
-    return next();
-  }
-
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
+  if (!this.isModified('password')) return;
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 // Virtual field for full name

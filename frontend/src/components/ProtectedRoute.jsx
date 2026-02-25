@@ -13,8 +13,15 @@ export const ProtectedRoute = ({ children, requiredRole = null }) => {
         return <Navigate to="/login" />;
     }
 
-    if (requiredRole && user?.role !== requiredRole) {
-        return <Navigate to="/" />;
+    if (requiredRole) {
+        // user.role is the primary check; fall back to isDoctor flag for legacy tokens
+        const effectiveRole = user?.role
+            || (user?.isDoctor === true ? 'doctor' : null)
+            || (user?.isDoctor === false ? 'patient' : null);
+
+        if (effectiveRole !== requiredRole) {
+            return <Navigate to="/" />;
+        }
     }
 
     return children;

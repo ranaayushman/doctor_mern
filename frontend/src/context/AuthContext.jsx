@@ -32,8 +32,17 @@ export const AuthProvider = ({ children }) => {
     const savedUser = localStorage.getItem('user');
 
     if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      const parsedUser = JSON.parse(savedUser);
+      // If the stored user has no role it's stale data from before the role fix.
+      // Clear it so the user gets a clean login that returns role correctly.
+      if (!parsedUser.role) {
+        removeCookie('accessToken');
+        removeCookie('refreshToken');
+        localStorage.removeItem('user');
+      } else {
+        setToken(savedToken);
+        setUser(parsedUser);
+      }
     }
     setLoading(false);
   }, []);
