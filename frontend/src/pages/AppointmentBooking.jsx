@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { appointmentService, timeSlotService, doctorService } from '../services';
-import { Loader, Alert } from '../components';
-import { Calendar, Clock, FileText, CheckCircle, Users } from 'lucide-react';
+import { appointmentService, doctorService } from '../services';
+import { Loader, Alert, TimeSlotPicker } from '../components';
+import { Calendar, FileText, CheckCircle, Users } from 'lucide-react';
 import '../styles/dashboard.css';
 import '../styles/timeslots.css';
 
@@ -14,7 +14,6 @@ export const AppointmentBooking = () => {
   const { user } = useAuth();
 
   const [doctor, setDoctor] = useState(null);
-  const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [step, setStep] = useState('form'); // 'form' | 'confirm' | 'success'
   const [formData, setFormData] = useState({
@@ -23,7 +22,6 @@ export const AppointmentBooking = () => {
     consultationType: 'in-person'
   });
   const [loading, setLoading] = useState(true);
-  const [slotsLoading, setSlotsLoading] = useState(false);
   const [error, setError] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
 
@@ -43,27 +41,9 @@ export const AppointmentBooking = () => {
     }
   };
 
-  const fetchSlotsForDate = async (date) => {
-    if (!date) return;
-    try {
-      setSlotsLoading(true);
-      setSelectedSlot(null);
-      const res = await timeSlotService.getAvailable(doctorId, date);
-      setAvailableSlots(res.data.data || []);
-    } catch (err) {
-      console.error('Failed to fetch slots:', err);
-      setAvailableSlots([]);
-    } finally {
-      setSlotsLoading(false);
-    }
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (name === 'appointmentDate') {
-      fetchSlotsForDate(value);
-    }
   };
 
   const handleProceedToConfirm = (e) => {
@@ -216,47 +196,14 @@ export const AppointmentBooking = () => {
               <div style={{ marginBottom: '1.25rem' }}>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
                   <Calendar size={16} style={{ display: 'inline', marginRight: '0.4rem' }} />
-                  Select Date
+                  Select Date &amp; Time Slot
                 </label>
-                <input
-                  type="date"
-                  name="appointmentDate"
-                  value={formData.appointmentDate}
-                  onChange={handleChange}
-                  min={new Date().toISOString().split('T')[0]}
-                  required
-                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem', boxSizing: 'border-box' }}
+                <TimeSlotPicker
+                  doctorId={doctorId}
+                  selectedSlot={selectedSlot}
+                  onSlotSelect={setSelectedSlot}
+                  onDateChange={(d) => setFormData(prev => ({ ...prev, appointmentDate: d }))}
                 />
-              </div>
-
-              <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
-                  <Clock size={16} style={{ display: 'inline', marginRight: '0.4rem' }} />
-                  Select Time Slot
-                </label>
-                {!formData.appointmentDate ? (
-                  <p style={{ color: '#9ca3af', fontSize: '0.9rem' }}>Please select a date first</p>
-                ) : slotsLoading ? (
-                  <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>Loading slots...</p>
-                ) : availableSlots.length === 0 ? (
-                  <p style={{ color: '#ef4444', fontSize: '0.9rem' }}>No available slots for this date</p>
-                ) : (
-                  <div className="slot-grid">
-                    {availableSlots.map(slot => (
-                      <button
-                        key={slot._id}
-                        type="button"
-                        onClick={() => setSelectedSlot(slot)}
-                        className={`slot-card ${slot.isBooked ? 'slot-booked' : 'slot-available'} ${selectedSlot?._id === slot._id ? 'slot-selected' : ''}`}
-                        disabled={slot.isBooked}
-                      >
-                        <span className="slot-time">{formatTime(slot.startTime)}</span>
-                        <span className="slot-end">{formatTime(slot.endTime)}</span>
-                        <span className="slot-status">{slot.isBooked ? 'Booked' : 'Available'}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <div style={{ marginBottom: '1.25rem' }}>

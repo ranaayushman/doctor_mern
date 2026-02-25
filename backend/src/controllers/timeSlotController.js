@@ -145,25 +145,22 @@ const getAvailableSlots = asyncHandler(async (req, res) => {
   const resolvedFrom = fromDate || date;
   const resolvedTo = toDate || date;
 
+  // UTC-safe: treat YYYY-MM-DD strings as local calendar day by appending
+  // explicit local midnight / end-of-day times, so setHours isn't needed
+  const toStartOfDay = (dateStr) => new Date(dateStr + 'T00:00:00');
+  const toEndOfDay   = (dateStr) => new Date(dateStr + 'T23:59:59.999');
+
   if (resolvedFrom || resolvedTo) {
     filter.date = {};
-    if (resolvedFrom) {
-      const d = new Date(resolvedFrom);
-      d.setHours(0, 0, 0, 0);
-      filter.date.$gte = d;
-    }
-    if (resolvedTo) {
-      const d = new Date(resolvedTo);
-      d.setHours(23, 59, 59, 999);
-      filter.date.$lte = d;
-    }
+    if (resolvedFrom) filter.date.$gte = toStartOfDay(resolvedFrom);
+    if (resolvedTo)   filter.date.$lte = toEndOfDay(resolvedTo);
   } else {
-    // Default: next 7 days
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const sevenDaysLater = new Date(today);
-    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
-    filter.date = { $gte: today, $lte: sevenDaysLater };
+    // Default: next 14 days from today
+    const todayStart = toStartOfDay(new Date().toISOString().split('T')[0]);
+    const futureEnd  = new Date(todayStart);
+    futureEnd.setDate(futureEnd.getDate() + 14);
+    futureEnd.setHours(23, 59, 59, 999);
+    filter.date = { $gte: todayStart, $lte: futureEnd };
   }
 
   // Pagination
