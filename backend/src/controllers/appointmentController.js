@@ -29,6 +29,7 @@ const bookAppointment = asyncHandler(async (req, res) => {
     appointmentDate,
     startTime,
     endTime,
+    timeSlotId,
     consultationType,
     chiefComplaint,
     medicalHistory,
@@ -53,14 +54,29 @@ const bookAppointment = asyncHandler(async (req, res) => {
   // ============= DOUBLE-BOOKING PREVENTION LOGIC =============
 
   // STEP 1: Check if slot exists and is not booked
-  const existingSlot = await TimeSlot.findOne({
-    doctorId,
-    date: new Date(appointmentDate),
-    startTime,
-    endTime,
-    isBooked: false,
-    isCancelled: false,
-  });
+  // Prefer looking up by timeSlotId (avoids timezone date-matching issues).
+  // Fall back to date-range + time search if no ID supplied.
+  let existingSlot;
+  if (timeSlotId) {
+    existingSlot = await TimeSlot.findOne({
+      _id: timeSlotId,
+      doctorId,
+      isBooked: false,
+      isCancelled: false,
+    });
+  } else {
+    // Date-range search: treat appointmentDate as a local calendar day
+    const dayStart = new Date(appointmentDate + 'T00:00:00');
+    const dayEnd   = new Date(appointmentDate + 'T23:59:59.999');
+    existingSlot = await TimeSlot.findOne({
+      doctorId,
+      date: { $gte: dayStart, $lte: dayEnd },
+      startTime,
+      endTime,
+      isBooked: false,
+      isCancelled: false,
+    });
+  }
 
   if (!existingSlot) {
     return sendError(
@@ -114,7 +130,7 @@ const bookAppointment = asyncHandler(async (req, res) => {
     appointmentDate: new Date(appointmentDate),
     startTime,
     endTime,
-    consultationType: consultationType || 'Online',
+    consultationType: consultationType || 'in-person',
     chiefComplaint,
     medicalHistory: medicalHistory || '',
     status: 'Confirmed',

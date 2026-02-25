@@ -38,16 +38,16 @@ const appointmentSchema = new mongoose.Schema(
     // Consultation Type
     consultationType: {
       type: String,
-      enum: ['Online', 'In-Person', 'Phone'],
-      default: 'Online',
+      enum: ['in-person', 'video', 'phone'],
+      default: 'in-person',
       required: true,
     },
 
     // Consultation Mode (for online consultations)
     consultationMode: {
       type: String,
-      enum: ['Video Call', 'Chat', 'Phone Call'],
-      default: 'Video Call',
+      enum: ['video-call', 'chat', 'phone-call'],
+      default: 'video-call',
     },
 
     // Chief Complaint/Reason for Visit
@@ -148,11 +148,10 @@ appointmentSchema.index({ doctorId: 1, appointmentDate: -1 });
 appointmentSchema.index({ status: 1, isPaid: 1 });
 
 // Validate that endTime is after startTime
-appointmentSchema.pre('save', function (next) {
+appointmentSchema.pre('save', function () {
   if (this.startTime >= this.endTime) {
     throw new Error('End time must be after start time');
   }
-  next();
 });
 
 module.exports = mongoose.model('Appointment', appointmentSchema);

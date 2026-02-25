@@ -139,11 +139,10 @@ prescriptionSchema.methods.isExpired = function () {
 };
 
 // Update status based on expiry date on save
-prescriptionSchema.pre('save', function (next) {
+prescriptionSchema.pre('save', function () {
   if (this.isExpired()) {
     this.status = 'Expired';
   }
-  next();
 });
 
 module.exports = mongoose.model('Prescription', prescriptionSchema);

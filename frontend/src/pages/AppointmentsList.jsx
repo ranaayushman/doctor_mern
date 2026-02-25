@@ -23,11 +23,10 @@ export const AppointmentsList = () => {
   const fetchAppointments = async () => {
     try {
       setLoading(true);
-      const params = filter !== 'all' ? { status: filter.charAt(0).toUpperCase() + filter.slice(1) } : {};
       const res = user?.role === 'doctor'
-        ? await appointmentService.getDoctorAppointments(params)
-        : await appointmentService.getPatientAppointments(params);
-      setAppointments(res.data.data?.appointments || []);
+        ? await appointmentService.getDoctorAppointments({})
+        : await appointmentService.getPatientAppointments({});
+      setAppointments(res.data.data || []);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch appointments');
     } finally {
@@ -62,9 +61,17 @@ export const AppointmentsList = () => {
 
   if (loading) return <Loader fullPage />;
 
-  const filteredAppointments = filter === 'all' 
-    ? appointments 
-    : appointments.filter(a => a.status.toLowerCase() === filter);
+  const today = new Date();
+  const filteredAppointments = appointments.filter(a => {
+    if (filter === 'all') return true;
+    if (filter === 'upcoming') {
+      const upcoming = ['Confirmed', 'Scheduled', 'Rescheduled'];
+      return upcoming.includes(a.status) && new Date(a.appointmentDate) >= today;
+    }
+    if (filter === 'completed') return a.status === 'Completed';
+    if (filter === 'cancelled') return a.status === 'Cancelled';
+    return true;
+  });
 
   return (
     <div className="dashboard-container">
@@ -101,29 +108,55 @@ export const AppointmentsList = () => {
           </div>
         ) : (
           <div style={{display: 'grid', gap: '1rem'}}>
-            {filteredAppointments.map(apt => (
-              <div key={apt.appointmentId} className="dashboard-card" style={{padding: '1.5rem'}}>
+        {filteredAppointments.map(apt => {
+            const isDoctor = user?.role === 'doctor';
+            const personName = isDoctor
+              ? `${apt.patientId?.firstName || ''} ${apt.patientId?.lastName || ''}`.trim()
+              : `Dr. ${apt.doctorId?.firstName || ''} ${apt.doctorId?.lastName || ''}`.trim();
+            const personSub = isDoctor
+              ? apt.patientId?.email
+              : apt.doctorId?.specialization;
+            const aptDate = apt.appointmentDate
+              ? new Date(apt.appointmentDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+              : '';
+            const formatTime = (t) => {
+              if (!t) return '';
+              const [h, m] = t.split(':');
+              const hour = parseInt(h, 10);
+              return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`;
+            };
+            return (
+              <div key={apt._id} className="dashboard-card" style={{padding: '1.5rem'}}>
                 <div style={{display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'start'}}>
                   <div>
-                    <h3 style={{margin: '0 0 0.5rem 0', fontSize: '1.1rem'}}>
-                      Dr. {apt.doctorName}
-                    </h3>
+                    <h3 style={{margin: '0 0 0.25rem 0', fontSize: '1.1rem'}}>{personName}</h3>
+                    {personSub && <p style={{margin: '0 0 0.5rem 0', color: '#2563eb', fontSize: '0.875rem'}}>{personSub}</p>}
                     <p style={{margin: '0.25rem 0', color: '#666', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                      <Calendar size={18} />
-                      {new Date(apt.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      <Calendar size={15} />
+                      {aptDate}
                     </p>
                     <p style={{margin: '0.25rem 0', color: '#666', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                      <Clock size={18} />
-                      {apt.time}
+                      <Clock size={15} />
+                      {formatTime(apt.startTime)} – {formatTime(apt.endTime)}
                     </p>
-                    {apt.complaint && (
-                      <p style={{margin: '0.5rem 0 0 0', color: '#666', fontSize: '0.95rem'}}>
-                        <strong>Complaint:</strong> {apt.complaint}
+                    {apt.consultationType && (
+                      <p style={{margin: '0.25rem 0', color: '#666', fontSize: '0.875rem', textTransform: 'capitalize'}}>
+                        <strong>Type:</strong> {apt.consultationType}
+                      </p>
+                    )}
+                    {apt.chiefComplaint && (
+                      <p style={{margin: '0.5rem 0 0 0', color: '#555', fontSize: '0.9rem'}}>
+                        <strong>Complaint:</strong> {apt.chiefComplaint}
+                      </p>
+                    )}
+                    {apt.consultationFee && (
+                      <p style={{margin: '0.25rem 0', color: '#059669', fontSize: '0.875rem', fontWeight: 600}}>
+                        Fee: ₹{apt.consultationFee}
                       </p>
                     )}
                   </div>
                   <div style={{textAlign: 'right'}}>
-                    <span className={`status-badge status-${apt.status.toLowerCase()}`} style={{display: 'block', marginBottom: '1rem'}}>
+                    <span className={`status-badge status-${apt.status?.toLowerCase()}`} style={{display: 'block', marginBottom: '1rem'}}>
                       {apt.status}
                     </span>
                     <div style={{display: 'flex', gap: '0.5rem', justifyContent: 'flex-end'}}>
@@ -131,37 +164,15 @@ export const AppointmentsList = () => {
                         <>
                           <button
                             onClick={() => handleReschedule(apt)}
-                            disabled={actionLoading === apt.appointmentId}
-                            style={{
-                              padding: '0.5rem 1rem',
-                              background: '#f59e0b',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '0.85rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem'
-                            }}
+                            disabled={actionLoading === apt._id}
+                            style={{padding: '0.5rem 1rem', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.25rem'}}
                           >
                             <RefreshCw size={16} /> Reschedule
                           </button>
                           <button
-                            onClick={() => handleCancel(apt.appointmentId)}
-                            disabled={actionLoading === apt.appointmentId}
-                            style={{
-                              padding: '0.5rem 1rem',
-                              background: '#ef4444',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '0.85rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem'
-                            }}
+                            onClick={() => handleCancel(apt._id)}
+                            disabled={actionLoading === apt._id}
+                            style={{padding: '0.5rem 1rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.25rem'}}
                           >
                             <X size={16} /> Cancel
                           </button>
@@ -171,7 +182,8 @@ export const AppointmentsList = () => {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
       </div>

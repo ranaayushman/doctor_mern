@@ -208,7 +208,7 @@ const validateAppointmentBooking = [
     .withMessage('End time must be in HH:mm format'),
   
   body('consultationType')
-    .isIn(['Online', 'In-Person', 'Phone'])
+    .isIn(['in-person', 'video', 'phone'])
     .withMessage('Invalid consultation type'),
   
   body('chiefComplaint')

@@ -22,13 +22,17 @@ export const PatientDashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [apptRes, prescRes] = await Promise.all([
+      const [apptRes] = await Promise.all([
         appointmentService.getMyAppointments({ limit: 5 }),
-        prescriptionService.getAll({ limit: 5 })
       ]);
-
-      setAppointments(apptRes.data.data.appointments || []);
-      setPrescriptions(prescRes.data.data.prescriptions || []);
+      setAppointments(apptRes.data.data || []);
+      // prescriptions handled separately
+      try {
+        const prescRes = await prescriptionService.getAll({ limit: 5 });
+        setPrescriptions(prescRes.data.data || []);
+      } catch {
+        // prescriptions endpoint may not be wired yet
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch data');
     } finally {
@@ -57,17 +61,28 @@ export const PatientDashboard = () => {
               <p className="empty-text">No appointments yet</p>
             ) : (
               <div className="appointments-list">
-                {appointments.map(apt => (
-                  <div key={apt.appointmentId} className="appointment-item">
-                    <div>
-                      <strong>Dr. {apt.doctorName}</strong>
-                      <p>{new Date(apt.date).toLocaleDateString()} at {apt.time}</p>
-                    </div>
-                    <span className={`status-badge status-${apt.status.toLowerCase()}`}>
-                      {apt.status}
-                    </span>
-                  </div>
-                ))}
+                {appointments.map(apt => {
+                    const formatTime = (t) => {
+                      if (!t) return '';
+                      const [h, m] = t.split(':');
+                      const hour = parseInt(h, 10);
+                      return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`;
+                    };
+                    return (
+                      <div key={apt._id} className="appointment-item">
+                        <div>
+                          <strong>Dr. {apt.doctorId?.firstName} {apt.doctorId?.lastName}</strong>
+                          <p style={{margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: '#666'}}>
+                            {apt.appointmentDate ? new Date(apt.appointmentDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) : ''}
+                            {apt.startTime ? ` at ${formatTime(apt.startTime)}` : ''}
+                          </p>
+                        </div>
+                        <span className={`status-badge status-${apt.status?.toLowerCase()}`}>
+                          {apt.status}
+                        </span>
+                      </div>
+                    );
+                  })}
               </div>
             )}
             <Link to="/appointments" className="btn-secondary" style={{marginTop: '1rem', width: '100%'}}>
