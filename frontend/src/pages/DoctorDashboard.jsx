@@ -27,7 +27,7 @@ export const DoctorDashboard = () => {
     try {
       setLoading(true);
       const response = await appointmentService.getDoctorAppointments({ limit: 10 });
-      const appts = response.data.data.appointments || [];
+      const appts = response.data.data || [];
       
       setAppointments(appts);
       setStats({
@@ -115,11 +115,11 @@ export const DoctorDashboard = () => {
                 </thead>
                 <tbody>
                   {appointments.map(apt => (
-                    <tr key={apt.appointmentId}>
-                      <td>{apt.patientName}</td>
-                      <td>{new Date(apt.date).toLocaleDateString()} {apt.time}</td>
+                    <tr key={apt._id}>
+                      <td>{apt.patientId?.firstName} {apt.patientId?.lastName}</td>
+                      <td>{new Date(apt.appointmentDate).toLocaleDateString()} {apt.startTime}</td>
                       <td>
-                        <span className={`status-badge status-${apt.status.toLowerCase()}`}>
+                        <span className={`status-badge status-${(apt.status || '').toLowerCase().replace(/\s+/g, '-')}`}>
                           {apt.status}
                         </span>
                       </td>

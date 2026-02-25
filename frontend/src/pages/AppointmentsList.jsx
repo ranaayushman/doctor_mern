@@ -18,7 +18,7 @@ export const AppointmentsList = () => {
 
   useEffect(() => {
     fetchAppointments();
-  }, [filter]);
+  }, []);
 
   const fetchAppointments = async () => {
     try {
@@ -156,7 +156,7 @@ export const AppointmentsList = () => {
                     )}
                   </div>
                   <div style={{textAlign: 'right'}}>
-                    <span className={`status-badge status-${apt.status?.toLowerCase()}`} style={{display: 'block', marginBottom: '1rem'}}>
+                    <span className={`status-badge status-${(apt.status || '').toLowerCase().replace(/\s+/g, '-')}`} style={{display: 'block', marginBottom: '1rem'}}>
                       {apt.status}
                     </span>
                     <div style={{display: 'flex', gap: '0.5rem', justifyContent: 'flex-end'}}>

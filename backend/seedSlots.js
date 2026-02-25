@@ -23,10 +23,11 @@ mongoose.connect(process.env.MONGODB_URI).then(async () => {
   }
   console.log('Dates to seed:', dates.map(d => d.toLocaleDateString('en-IN')));
 
-  let created = 0;
-  let skipped = 0;
+  let totalCreated = 0;
+  let totalSkipped = 0;
 
   for (const doctor of doctors) {
+    const docs = [];
     for (const slotDate of dates) {
       for (let h = 9; h < 17; h++) {
         for (const m of [0, 30]) {
@@ -34,29 +35,27 @@ mongoose.connect(process.env.MONGODB_URI).then(async () => {
           const endH = m === 30 ? h + 1 : h;
           const endM = m === 30 ? 0 : 30;
           const endTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
-
-          const exists = await TimeSlot.findOne({ doctorId: doctor._id, date: slotDate, startTime });
-          if (!exists) {
-            const slot = new TimeSlot({
-              doctorId: doctor._id,
-              date: slotDate,
-              startTime,
-              endTime,
-              isBooked: false,
-              isCancelled: false,
-            });
-            await slot.save();
-            created++;
-          } else {
-            skipped++;
-          }
+          docs.push({ doctorId: doctor._id, date: slotDate, startTime, endTime, isBooked: false, isCancelled: false });
         }
       }
     }
-    console.log(`  ${doctor.firstName}: done`);
+    try {
+      const result = await TimeSlot.insertMany(docs, { ordered: false });
+      totalCreated += result.length;
+      console.log(`  ${doctor.firstName}: created ${result.length}`);
+    } catch (err) {
+      if (err.code === 11000 || err.writeErrors) {
+        const inserted = err.insertedDocs?.length || (docs.length - (err.writeErrors?.length || 0));
+        totalCreated += inserted;
+        totalSkipped += err.writeErrors?.length || 0;
+        console.log(`  ${doctor.firstName}: created ${inserted}, skipped ${err.writeErrors?.length || 0} duplicates`);
+      } else {
+        throw err;
+      }
+    }
   }
 
-  console.log(`\nDone! Created: ${created}, Already existed (skipped): ${skipped}`);
+  console.log(`\nDone! Created: ${totalCreated}, Skipped duplicates: ${totalSkipped}`);
   const total = await TimeSlot.countDocuments();
   console.log(`Total slots in DB: ${total}`);
   mongoose.disconnect();
