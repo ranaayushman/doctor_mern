@@ -2,39 +2,40 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { appointmentService, doctorService } from '../services';
+import { appointmentService, timeSlotService, doctorService } from '../services';
 import { Loader, Alert } from '../components';
-import { Calendar, Clock, FileText } from 'lucide-react';
+import { Calendar, Clock, FileText, CheckCircle, Users } from 'lucide-react';
 import '../styles/dashboard.css';
+import '../styles/timeslots.css';
 
 export const AppointmentBooking = () => {
   const { doctorId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+
   const [doctor, setDoctor] = useState(null);
   const [availableSlots, setAvailableSlots] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [step, setStep] = useState('form'); // 'form' | 'confirm' | 'success'
   const [formData, setFormData] = useState({
     appointmentDate: '',
-    appointmentTime: '',
-    complaint: ''
+    chiefComplaint: '',
+    consultationType: 'in-person'
   });
   const [loading, setLoading] = useState(true);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [error, setError] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
 
   useEffect(() => {
-    fetchDoctorAndSlots();
+    fetchDoctor();
   }, [doctorId]);
 
-  const fetchDoctorAndSlots = async () => {
+  const fetchDoctor = async () => {
     try {
       setLoading(true);
-      const doctorRes = await doctorService.getById(doctorId);
-      setDoctor(doctorRes.data.data);
-      
-      const today = new Date().toISOString().split('T')[0];
-      const slotsRes = await appointmentService.getAvailableSlots(doctorId, { date: today });
-      setAvailableSlots(slotsRes.data.data.slots || []);
+      const res = await doctorService.getById(doctorId);
+      setDoctor(res.data.data);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch doctor details');
     } finally {
@@ -42,81 +43,179 @@ export const AppointmentBooking = () => {
     }
   };
 
+  const fetchSlotsForDate = async (date) => {
+    if (!date) return;
+    try {
+      setSlotsLoading(true);
+      setSelectedSlot(null);
+      const res = await timeSlotService.getAvailable(doctorId, date);
+      setAvailableSlots(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch slots:', err);
+      setAvailableSlots([]);
+    } finally {
+      setSlotsLoading(false);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-
+    setFormData(prev => ({ ...prev, [name]: value }));
     if (name === 'appointmentDate') {
       fetchSlotsForDate(value);
     }
   };
 
-  const fetchSlotsForDate = async (date) => {
-    try {
-      const slotsRes = await appointmentService.getAvailableSlots(doctorId, { date });
-      setAvailableSlots(slotsRes.data.data.slots || []);
-    } catch (err) {
-      console.error('Failed to fetch slots:', err);
-    }
+  const handleProceedToConfirm = (e) => {
+    e.preventDefault();
+    if (!formData.appointmentDate) { setError('Please select a date'); return; }
+    if (!selectedSlot) { setError('Please select a time slot'); return; }
+    setError('');
+    setStep('confirm');
   };
 
-  const handleBookAppointment = async (e) => {
-    e.preventDefault();
-    if (!formData.appointmentDate || !formData.appointmentTime) {
-      setError('Please select date and time');
-      return;
-    }
-
+  const handleConfirmBooking = async () => {
     try {
       setBookingLoading(true);
-
-      const appointmentRes = await appointmentService.createAppointment({
+      const payload = {
         doctorId,
-        date: formData.appointmentDate,
-        time: formData.appointmentTime,
-        complaint: formData.complaint
-      });
-
-      navigate('/patient/appointments', {
-        state: { message: 'Appointment booked successfully!' }
-      });
+        appointmentDate: formData.appointmentDate,
+        startTime: selectedSlot.startTime,
+        endTime: selectedSlot.endTime,
+        timeSlotId: selectedSlot._id,
+        consultationType: formData.consultationType,
+        chiefComplaint: formData.chiefComplaint
+      };
+      await appointmentService.createAppointment(payload);
+      setStep('success');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to book appointment');
+      setStep('form');
     } finally {
       setBookingLoading(false);
     }
   };
 
+  const formatTime = (t) => {
+    if (!t) return '';
+    const [h, m] = t.split(':');
+    const hour = parseInt(h, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const h12 = hour % 12 || 12;
+    return `${h12}:${m} ${ampm}`;
+  };
+
   if (loading) return <Loader fullPage />;
 
+  // SUCCESS STEP
+  if (step === 'success') {
+    return (
+      <div className="dashboard-container">
+        <div className="container" style={{ maxWidth: '600px' }}>
+          <div className="dashboard-card" style={{ textAlign: 'center', padding: '3rem' }}>
+            <CheckCircle size={64} color="#10b981" style={{ marginBottom: '1rem' }} />
+            <h2 style={{ color: '#10b981', marginBottom: '0.5rem' }}>Appointment Booked!</h2>
+            <p style={{ color: '#666', marginBottom: '2rem' }}>Your appointment has been confirmed.</p>
+            <div style={{ background: '#f0f9ff', borderRadius: '8px', padding: '1.5rem', textAlign: 'left', marginBottom: '2rem' }}>
+              <p><strong>Doctor:</strong> Dr. {doctor?.firstName} {doctor?.lastName}</p>
+              <p><strong>Date:</strong> {new Date(formData.appointmentDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p><strong>Time:</strong> {formatTime(selectedSlot?.startTime)} – {formatTime(selectedSlot?.endTime)}</p>
+              <p><strong>Type:</strong> {formData.consultationType}</p>
+              {formData.chiefComplaint && <p><strong>Complaint:</strong> {formData.chiefComplaint}</p>}
+            </div>
+            <button
+              onClick={() => navigate('/patient/appointments')}
+              style={{ padding: '0.75rem 2rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '1rem', cursor: 'pointer' }}
+            >
+              View My Appointments
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // CONFIRM STEP
+  if (step === 'confirm') {
+    return (
+      <div className="dashboard-container">
+        <div className="container" style={{ maxWidth: '600px' }}>
+          <h1>Confirm Appointment</h1>
+          {error && <Alert type="error" message={error} />}
+          <div className="dashboard-card" style={{ padding: '2rem' }}>
+            <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid #e5e7eb' }}>
+              <h2 style={{ margin: '0 0 0.25rem 0' }}>Dr. {doctor?.firstName} {doctor?.lastName}</h2>
+              <p style={{ margin: 0, color: '#666' }}>{doctor?.specialization}</p>
+            </div>
+            <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#666' }}>Date</span>
+                <strong>{new Date(formData.appointmentDate).toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#666' }}>Time</span>
+                <strong>{formatTime(selectedSlot?.startTime)} – {formatTime(selectedSlot?.endTime)}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#666' }}>Type</span>
+                <strong style={{ textTransform: 'capitalize' }}>{formData.consultationType}</strong>
+              </div>
+              {formData.chiefComplaint && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#666' }}>Complaint</span>
+                  <strong style={{ maxWidth: '60%', textAlign: 'right' }}>{formData.chiefComplaint}</strong>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.75rem', borderTop: '1px solid #e5e7eb' }}>
+                <span style={{ color: '#666' }}>Consultation Fee</span>
+                <strong style={{ color: '#2563eb', fontSize: '1.1rem' }}>₹{doctor?.consultationFee}</strong>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button
+                onClick={() => setStep('form')}
+                style={{ flex: 1, padding: '0.75rem', background: '#f3f4f6', border: 'none', borderRadius: '6px', fontSize: '1rem', cursor: 'pointer' }}
+              >
+                Back
+              </button>
+              <button
+                onClick={handleConfirmBooking}
+                disabled={bookingLoading}
+                style={{ flex: 2, padding: '0.75rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '1rem', cursor: bookingLoading ? 'not-allowed' : 'pointer', opacity: bookingLoading ? 0.7 : 1 }}
+              >
+                {bookingLoading ? 'Confirming...' : 'Confirm & Book'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // FORM STEP
   return (
     <div className="dashboard-container">
-      <div className="container" style={{maxWidth: '600px'}}>
+      <div className="container" style={{ maxWidth: '640px' }}>
         <h1>Book Appointment</h1>
-
         {error && <Alert type="error" message={error} />}
 
         {doctor && (
-          <div className="dashboard-card" style={{marginTop: '1rem'}}>
-            <div style={{display: 'grid', gridTemplateColumns: '100px 1fr', gap: '1rem', marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid #e5e7eb'}}>
-              <div style={{width: '100px', height: '100px', backgroundColor: '#e0e7ff', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                <Users size={48} color="#2563eb" />
+          <div className="dashboard-card" style={{ marginTop: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '1rem', marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid #e5e7eb' }}>
+              <div style={{ width: '80px', height: '80px', backgroundColor: '#e0e7ff', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Users size={40} color="#2563eb" />
               </div>
               <div>
-                <h2 style={{margin: 0, fontSize: '1.5rem'}}>Dr. {doctor.firstName} {doctor.lastName}</h2>
-                <p style={{margin: '0.5rem 0 0 0', color: '#666'}}>{doctor.specialization}</p>
-                <p style={{margin: '0.25rem 0 0 0', color: '#666'}}>₹{doctor.consultationFee} consultation fee</p>
-                <p style={{margin: '0.25rem 0 0 0', color: '#666'}}>Rating: {doctor.rating || 'N/A'}/5</p>
+                <h2 style={{ margin: 0 }}>Dr. {doctor.firstName} {doctor.lastName}</h2>
+                <p style={{ margin: '0.25rem 0 0 0', color: '#666' }}>{doctor.specialization}</p>
+                <p style={{ margin: '0.25rem 0 0 0', color: '#2563eb', fontWeight: 600 }}>₹{doctor.consultationFee} consultation fee</p>
               </div>
             </div>
 
-            <form onSubmit={handleBookAppointment}>
-              <div style={{marginBottom: '1rem'}}>
-                <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '500'}}>
-                  <Calendar size={18} style={{display: 'inline-block', marginRight: '0.5rem'}} />
+            <form onSubmit={handleProceedToConfirm}>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  <Calendar size={16} style={{ display: 'inline', marginRight: '0.4rem' }} />
                   Select Date
                 </label>
                 <input
@@ -126,104 +225,74 @@ export const AppointmentBooking = () => {
                   onChange={handleChange}
                   min={new Date().toISOString().split('T')[0]}
                   required
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '1rem'
-                  }}
+                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem', boxSizing: 'border-box' }}
                 />
               </div>
 
-              <div style={{marginBottom: '1rem'}}>
-                <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '500'}}>
-                  <Clock size={18} style={{display: 'inline-block', marginRight: '0.5rem'}} />
-                  Select Time
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  <Clock size={16} style={{ display: 'inline', marginRight: '0.4rem' }} />
+                  Select Time Slot
                 </label>
-                <select
-                  name="appointmentTime"
-                  value={formData.appointmentTime}
-                  onChange={handleChange}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '1rem'
-                  }}
-                >
-                  <option value="">-- Select a time slot --</option>
-                  {availableSlots.map((slot) => (
-                    <option key={slot} value={slot}>
-                      {slot}
-                    </option>
-                  ))}
-                </select>
-                {availableSlots.length === 0 && (
-                  <p style={{color: '#ef4444', fontSize: '0.9rem', marginTop: '0.5rem'}}>No slots available for selected date</p>
+                {!formData.appointmentDate ? (
+                  <p style={{ color: '#9ca3af', fontSize: '0.9rem' }}>Please select a date first</p>
+                ) : slotsLoading ? (
+                  <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>Loading slots...</p>
+                ) : availableSlots.length === 0 ? (
+                  <p style={{ color: '#ef4444', fontSize: '0.9rem' }}>No available slots for this date</p>
+                ) : (
+                  <div className="slot-grid">
+                    {availableSlots.map(slot => (
+                      <button
+                        key={slot._id}
+                        type="button"
+                        onClick={() => setSelectedSlot(slot)}
+                        className={`slot-card ${slot.isBooked ? 'slot-booked' : 'slot-available'} ${selectedSlot?._id === slot._id ? 'slot-selected' : ''}`}
+                        disabled={slot.isBooked}
+                      >
+                        <span className="slot-time">{formatTime(slot.startTime)}</span>
+                        <span className="slot-end">{formatTime(slot.endTime)}</span>
+                        <span className="slot-status">{slot.isBooked ? 'Booked' : 'Available'}</span>
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
 
-              <div style={{marginBottom: '1rem'}}>
-                <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '500'}}>
-                  <FileText size={18} style={{display: 'inline-block', marginRight: '0.5rem'}} />
-                  Chief Complaint / Reason
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Consultation Type</label>
+                <select
+                  name="consultationType"
+                  value={formData.consultationType}
+                  onChange={handleChange}
+                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
+                >
+                  <option value="in-person">In-Person</option>
+                  <option value="video">Video Consultation</option>
+                  <option value="phone">Phone Consultation</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  <FileText size={16} style={{ display: 'inline', marginRight: '0.4rem' }} />
+                  Chief Complaint / Reason for Visit
                 </label>
                 <textarea
-                  name="complaint"
-                  value={formData.complaint}
+                  name="chiefComplaint"
+                  value={formData.chiefComplaint}
                   onChange={handleChange}
                   placeholder="Describe your symptoms or reason for visit..."
                   rows="4"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '1rem',
-                    fontFamily: 'inherit'
-                  }}
+                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem', fontFamily: 'inherit', boxSizing: 'border-box' }}
                 />
-              </div>
-
-              <div style={{
-                background: '#f0f9ff',
-                padding: '1rem',
-                borderRadius: '6px',
-                marginBottom: '1.5rem',
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '1rem'
-              }}>
-                <div>
-                  <p style={{margin: 0, color: '#666', fontSize: '0.9rem'}}>Consultation Fee</p>
-                  <p style={{margin: '0.5rem 0 0 0', fontSize: '1.25rem', fontWeight: 'bold', color: '#2563eb'}}>₹{doctor.consultationFee}</p>
-                </div>
-                <div style={{textAlign: 'right'}}>
-                  <p style={{margin: 0, color: '#666', fontSize: '0.9rem'}}>Total Amount</p>
-                  <p style={{margin: '0.5rem 0 0 0', fontSize: '1.25rem', fontWeight: 'bold', color: '#10b981'}}>₹{doctor.consultationFee}</p>
-                </div>
               </div>
 
               <button
                 type="submit"
-                disabled={bookingLoading}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  background: '#2563eb',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '1rem',
-                  fontWeight: '500',
-                  cursor: bookingLoading ? 'not-allowed' : 'pointer',
-                  opacity: bookingLoading ? 0.7 : 1
-                }}
+                style={{ width: '100%', padding: '0.85rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' }}
               >
-                {bookingLoading ? 'Processing...' : 'Book Appointment'}
+                Review Booking
               </button>
             </form>
           </div>
@@ -232,5 +301,3 @@ export const AppointmentBooking = () => {
     </div>
   );
 };
-
-import { Users } from 'lucide-react';

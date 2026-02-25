@@ -3,3 +3,4 @@ export { Loader } from './Loader';
 export { ProtectedRoute } from './ProtectedRoute';
 export { Alert } from './Alert';
 export { Modal } from './Modal';
+export { RescheduleModal } from './RescheduleModal';

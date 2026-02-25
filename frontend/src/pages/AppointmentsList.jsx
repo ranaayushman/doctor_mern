@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { appointmentService } from '../services/appointmentService';
+import { RescheduleModal } from '../components/RescheduleModal';
 import { Loader, Alert } from '../components';
 import { Calendar, Clock, X, RefreshCw } from 'lucide-react';
 import '../styles/dashboard.css';
@@ -13,6 +14,7 @@ export const AppointmentsList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState(null);
 
   useEffect(() => {
     fetchAppointments();
@@ -21,16 +23,11 @@ export const AppointmentsList = () => {
   const fetchAppointments = async () => {
     try {
       setLoading(true);
-      let endpoint = appointmentService.getPatientAppointments;
-      
-      if (filter !== 'all') {
-        const params = { status: filter.charAt(0).toUpperCase() + filter.slice(1) };
-        const res = await appointmentService.getPatientAppointments(params);
-        setAppointments(res.data.data.appointments || []);
-      } else {
-        const res = await endpoint();
-        setAppointments(res.data.data.appointments || []);
-      }
+      const params = filter !== 'all' ? { status: filter.charAt(0).toUpperCase() + filter.slice(1) } : {};
+      const res = user?.role === 'doctor'
+        ? await appointmentService.getDoctorAppointments(params)
+        : await appointmentService.getPatientAppointments(params);
+      setAppointments(res.data.data?.appointments || []);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch appointments');
     } finally {
@@ -38,25 +35,14 @@ export const AppointmentsList = () => {
     }
   };
 
-  const handleReschedule = async (appointmentId) => {
-    const newDate = prompt('Enter new date (YYYY-MM-DD):');
-    const newTime = prompt('Enter new time (HH:MM):');
+  const handleReschedule = (appointment) => {
+    setRescheduleTarget(appointment);
+  };
 
-    if (!newDate || !newTime) return;
-
-    try {
-      setActionLoading(appointmentId);
-      await appointmentService.rescheduleAppointment(appointmentId, {
-        date: newDate,
-        time: newTime
-      });
-      setError('');
-      fetchAppointments();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to reschedule');
-    } finally {
-      setActionLoading(null);
-    }
+  const doReschedule = async (appointmentId, data) => {
+    await appointmentService.rescheduleAppointment(appointmentId, data);
+    setError('');
+    fetchAppointments();
   };
 
   const handleCancel = async (appointmentId) => {
@@ -144,7 +130,7 @@ export const AppointmentsList = () => {
                       {!['Completed', 'Cancelled'].includes(apt.status) && (
                         <>
                           <button
-                            onClick={() => handleReschedule(apt.appointmentId)}
+                            onClick={() => handleReschedule(apt)}
                             disabled={actionLoading === apt.appointmentId}
                             style={{
                               padding: '0.5rem 1rem',
@@ -189,6 +175,14 @@ export const AppointmentsList = () => {
           </div>
         )}
       </div>
+
+      {rescheduleTarget && (
+        <RescheduleModal
+          appointment={rescheduleTarget}
+          onClose={() => setRescheduleTarget(null)}
+          onReschedule={doReschedule}
+        />
+      )}
     </div>
   );
 };

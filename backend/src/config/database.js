@@ -4,14 +4,13 @@
  */
 
 const mongoose = require('mongoose');
+require('dotenv').config();
 
 const connectDB = async () => {
   try {
     const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/doctor_appointment';
-    
+
     const connection = await mongoose.connect(uri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       // Automatically create indexes defined in schemas
       autoIndex: true,
     });
@@ -24,7 +23,7 @@ const connectDB = async () => {
   } catch (error) {
     console.error(`❌ MongoDB Connection Failed:`);
     console.error(`Error: ${error.message}`);
-    
+
     // Exit process with failure code
     process.exit(1);
   }

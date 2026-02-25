@@ -1,9 +1,10 @@
 // src/pages/DoctorDashboard.jsx
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { appointmentService } from '../services/appointmentService';
 import { Loader, Alert } from '../components';
-import { Users, CheckCircle, Clock, TrendingUp } from 'lucide-react';
+import { Users, CheckCircle, Clock, TrendingUp, CalendarDays } from 'lucide-react';
 import '../styles/dashboard.css';
 
 export const DoctorDashboard = () => {
@@ -67,6 +68,33 @@ export const DoctorDashboard = () => {
           <div className="stat-card">
             <div className="stat-number" style={{color: '#ef4444'}}>{stats.cancelled}</div>
             <div className="stat-label">Cancelled</div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="dashboard-card" style={{ marginBottom: '1.5rem' }}>
+          <h2 style={{ marginTop: 0 }}>Quick Actions</h2>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <Link
+              to="/doctor/timeslots"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                padding: '0.75rem 1.25rem', background: '#2563eb', color: '#fff',
+                borderRadius: '8px', textDecoration: 'none', fontWeight: 600, fontSize: '0.95rem'
+              }}
+            >
+              <CalendarDays size={20} /> Manage Availability
+            </Link>
+            <Link
+              to="/doctor/appointments"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                padding: '0.75rem 1.25rem', background: '#f3f4f6', color: '#374151',
+                borderRadius: '8px', textDecoration: 'none', fontWeight: 600, fontSize: '0.95rem'
+              }}
+            >
+              <Users size={20} /> View All Appointments
+            </Link>
           </div>
         </div>
 

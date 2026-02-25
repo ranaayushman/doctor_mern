@@ -10,6 +10,7 @@ import '../styles/doctors.css';
 export const DoctorSearchPage = () => {
   const { isAuthenticated } = useAuth();
   const [doctors, setDoctors] = useState([]);
+  const [specializations, setSpecializations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({
@@ -19,8 +20,22 @@ export const DoctorSearchPage = () => {
   });
 
   useEffect(() => {
+    fetchSpecializations();
+  }, []);
+
+  useEffect(() => {
     fetchDoctors();
   }, [filters]);
+
+  const fetchSpecializations = async () => {
+    try {
+      const res = await doctorService.getSpecializations();
+      setSpecializations(res.data.data?.specializations || []);
+    } catch (err) {
+      // fall back to empty — select will just show "All Specializations"
+      console.error('Failed to fetch specializations', err);
+    }
+  };
 
   const fetchDoctors = async () => {
     try {
@@ -34,8 +49,6 @@ export const DoctorSearchPage = () => {
       setLoading(false);
     }
   };
-
-  const specializations = ['Cardiologist', 'Dermatologist', 'Neurologist', 'Pediatrician', 'Orthopedic'];
 
   const handleFilterChange = (e) => {
     setFilters({
@@ -61,7 +74,7 @@ export const DoctorSearchPage = () => {
             >
               <option value="">All Specializations</option>
               {specializations.map(spec => (
-                <option key={spec} value={spec}>{spec}</option>
+                <option key={spec.name} value={spec.name}>{spec.name} ({spec.count})</option>
               ))}
             </select>
           </div>
@@ -155,7 +168,7 @@ export const DoctorSearchPage = () => {
                   </div>
                   {isAuthenticated ? (
                     <Link 
-                      to={`/appointments/book/${doctor._id}`} 
+                      to={`/book-appointment/${doctor._id}`} 
                       className="btn-primary btn-sm"
                     >
                       Book Now

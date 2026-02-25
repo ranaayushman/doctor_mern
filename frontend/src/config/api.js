@@ -24,6 +24,8 @@ export const API_ENDPOINTS = {
   DOCTORS: {
     GET_ALL: '/doctors',
     SEARCH: '/doctors/search',
+    SPECIALIZATIONS: '/doctors/specializations',
+    SEARCH_BY_SPEC: (spec) => `/doctors/search/specialization/${spec}`,
     GET_ONE: (id) => `/doctors/${id}`,
     AVAILABILITY: (id) => `/doctors/${id}/availability`,
     REVIEWS: (id) => `/doctors/${id}/reviews`,
@@ -33,21 +35,25 @@ export const API_ENDPOINTS = {
   // Appointments
   APPOINTMENTS: {
     CREATE: '/appointments',
-    GET_MY: '/appointments/my-appointments',
-    GET_DOCTOR: '/appointments/doctor-appointments',
+    GET_MY: '/appointments',
+    GET_DOCTOR: '/appointments/doctor/appointments',
     GET_ONE: (id) => `/appointments/${id}`,
-    CANCEL: (id) => `/appointments/${id}`,
+    CANCEL: (id) => `/appointments/${id}/cancel`,
     RESCHEDULE: (id) => `/appointments/${id}/reschedule`,
     UPDATE_STATUS: (id) => `/appointments/${id}/status`,
-    AVAILABLE_SLOTS: (id) => `/appointments/doctor/${id}/available-slots`
+    STATS: '/appointments/stats'
   },
   
   // Time Slots
   TIMESLOTS: {
     CREATE: '/timeslots',
-    GET_BY_DOCTOR: (id) => `/timeslots/doctor/${id}`,
+    GET_AVAILABLE: (doctorId) => `/timeslots/${doctorId}`,
+    GET_ALL_FOR_DOCTOR: (doctorId) => `/timeslots/${doctorId}/all`,
+    GET_STATS: (doctorId) => `/timeslots/${doctorId}/stats`,
     UPDATE: (id) => `/timeslots/${id}`,
-    DELETE: (id) => `/timeslots/${id}`
+    DELETE: (id) => `/timeslots/${id}`,
+    CANCEL: (id) => `/timeslots/${id}/cancel`,
+    BULK_DELETE: '/timeslots/bulk-delete'
   },
   
   // Prescriptions

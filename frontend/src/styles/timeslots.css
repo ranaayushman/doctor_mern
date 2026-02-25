@@ -1,0 +1,204 @@
+/* src/styles/timeslots.css */
+
+/* ── Slot Grid & Cards ──────────────────────────────────────── */
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.6rem;
+}
+
+.slot-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 0.4rem;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.8rem;
+  font-family: inherit;
+  position: relative;
+  min-height: 68px;
+}
+
+.slot-time {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: inherit;
+}
+
+.slot-end {
+  font-size: 0.72rem;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.slot-status {
+  font-size: 0.7rem;
+  margin-top: 3px;
+  letter-spacing: 0.02em;
+}
+
+/* Available state */
+.slot-available {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #065f46;
+}
+.slot-available:hover:not(:disabled) {
+  background: #d1fae5;
+  border-color: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.2);
+}
+
+/* Booked state */
+.slot-booked {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+/* Cancelled state */
+.slot-cancelled {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #c2410c;
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* Selected state */
+.slot-selected {
+  background: #2563eb !important;
+  border-color: #1d4ed8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.4);
+}
+.slot-selected .slot-time,
+.slot-selected .slot-end,
+.slot-selected .slot-status {
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+/* ── Management Mode Slot ───────────────────────────────────── */
+.slot-manage {
+  min-height: 82px;
+}
+
+.slot-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.slot-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  transition: background 0.1s;
+  display: flex;
+  align-items: center;
+}
+.slot-action-cancel { color: #f59e0b; }
+.slot-action-cancel:hover { background: #fef3c7; }
+.slot-action-delete { color: #ef4444; }
+.slot-action-delete:hover { background: #fee2e2; }
+
+/* ── TimeSlot Form ─────────────────────────────────────────── */
+.ts-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 1rem;
+}
+.ts-form-group label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+}
+.ts-input {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.ts-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+.ts-btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.75rem 1rem;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ts-btn-primary:hover { background: #1d4ed8; }
+
+/* ── Date Groups ───────────────────────────────────────────── */
+.ts-date-group {
+  margin-bottom: 1.25rem;
+}
+.ts-date-header {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  color: #374151;
+  font-weight: 600;
+}
+
+/* ── Modal ─────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.modal-body {
+  padding: 1.5rem;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}

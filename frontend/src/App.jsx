@@ -13,6 +13,7 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { AppointmentsList } from './pages/AppointmentsList';
 import { PrescriptionsList } from './pages/PrescriptionsList';
 import { ProfilePage } from './pages/ProfilePage';
+import { TimeSlotManagement } from './pages/TimeSlotManagement';
 import { NotFound } from './pages/NotFound';
 import { Navigation } from './components/Navigation';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -47,6 +48,7 @@ const AppContent = () => {
         {/* Doctor Routes */}
         <Route path="/doctor/dashboard" element={<ProtectedRoute requiredRole="doctor"><DoctorDashboard /></ProtectedRoute>} />
         <Route path="/doctor/appointments" element={<ProtectedRoute requiredRole="doctor"><AppointmentsList /></ProtectedRoute>} />
+        <Route path="/doctor/timeslots" element={<ProtectedRoute requiredRole="doctor"><TimeSlotManagement /></ProtectedRoute>} />
         <Route path="/doctor/profile" element={<ProtectedRoute requiredRole="doctor"><ProfilePage /></ProtectedRoute>} />
 
         {/* Admin Routes */}
