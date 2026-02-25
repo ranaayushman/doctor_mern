@@ -17,7 +17,18 @@ const { asyncHandler } = require('../middleware/errorHandler');
  * Bulk creation for convenience
  */
 const createTimeSlots = asyncHandler(async (req, res) => {
-  const { doctorId, date, startTime, endTime, slotDuration = 30 } = req.body;
+  // doctorId from body (admin use) or from auth token (doctor use)
+  const doctorId = req.body.doctorId || req.userId;
+  const { date, dates, startTime, endTime, slotDuration = 30 } = req.body;
+
+  // Support both single date and dates array
+  const datesToProcess = dates && Array.isArray(dates) && dates.length > 0
+    ? dates
+    : date ? [date] : [];
+
+  if (datesToProcess.length === 0) {
+    return sendError(res, 400, 'At least one date is required');
+  }
 
   // Validate doctor exists
   const doctor = await Doctor.findById(doctorId);
@@ -25,19 +36,19 @@ const createTimeSlots = asyncHandler(async (req, res) => {
     return sendError(res, 404, 'Doctor not found');
   }
 
-  // Validate date is not in the past
-  const slotDate = new Date(date);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  if (slotDate < today) {
-    return sendError(res, 400, 'Cannot create slots for past dates');
-  }
-
   // Validate times
   if (startTime >= endTime) {
     return sendError(res, 400, 'End time must be after start time');
   }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const allCreatedSlots = [];
+
+  for (const rawDate of datesToProcess) {
+    const slotDate = new Date(rawDate);
+    if (slotDate < today) continue; // skip past dates
 
   try {
     // Parse times
@@ -93,18 +104,17 @@ const createTimeSlots = asyncHandler(async (req, res) => {
 
       currentTime = nextTime;
     }
-
-    sendSuccess(res, 201, `${createdSlots.length} time slots created successfully`, {
-      slots: createdSlots,
-      count: createdSlots.length,
-    });
+    allCreatedSlots.push(...createdSlots);
   } catch (error) {
-    if (error.code === 11000) {
-      // Duplicate key error - slot already exists
-      return sendError(res, 400, 'One or more time slots already exist for this time period');
-    }
-    throw error;
+    if (error.code !== 11000) throw error;
+    // skip duplicate key errors
   }
+  }
+
+  sendSuccess(res, 201, `${allCreatedSlots.length} time slots created successfully`, {
+    slots: allCreatedSlots,
+    count: allCreatedSlots.length,
+  });
 });
 
 /**
@@ -116,7 +126,7 @@ const createTimeSlots = asyncHandler(async (req, res) => {
  */
 const getAvailableSlots = asyncHandler(async (req, res) => {
   const { doctorId } = req.params;
-  const { fromDate, toDate, page = 1, limit = 20 } = req.query;
+  const { fromDate, toDate, date, page = 1, limit = 50 } = req.query;
 
   // Validate doctor exists
   const doctor = await Doctor.findById(doctorId);
@@ -131,14 +141,21 @@ const getAvailableSlots = asyncHandler(async (req, res) => {
     isCancelled: false,
   };
 
-  // Add date range filter if provided
-  if (fromDate || toDate) {
+  // Support ?date=YYYY-MM-DD (single day) or ?fromDate=...&toDate=...
+  const resolvedFrom = fromDate || date;
+  const resolvedTo = toDate || date;
+
+  if (resolvedFrom || resolvedTo) {
     filter.date = {};
-    if (fromDate) {
-      filter.date.$gte = new Date(fromDate);
+    if (resolvedFrom) {
+      const d = new Date(resolvedFrom);
+      d.setHours(0, 0, 0, 0);
+      filter.date.$gte = d;
     }
-    if (toDate) {
-      filter.date.$lte = new Date(toDate);
+    if (resolvedTo) {
+      const d = new Date(resolvedTo);
+      d.setHours(23, 59, 59, 999);
+      filter.date.$lte = d;
     }
   } else {
     // Default: next 7 days
@@ -146,19 +163,14 @@ const getAvailableSlots = asyncHandler(async (req, res) => {
     today.setHours(0, 0, 0, 0);
     const sevenDaysLater = new Date(today);
     sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
-
-    filter.date = {
-      $gte: today,
-      $lte: sevenDaysLater,
-    };
+    filter.date = { $gte: today, $lte: sevenDaysLater };
   }
 
   // Pagination
   const pageNum = parseInt(page, 10) || 1;
-  const pageLimit = parseInt(limit, 10) || 20;
+  const pageLimit = parseInt(limit, 10) || 50;
   const skip = (pageNum - 1) * pageLimit;
 
-  // Fetch slots
   const slots = await TimeSlot.find(filter)
     .sort({ date: 1, startTime: 1 })
     .skip(skip)

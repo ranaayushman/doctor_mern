@@ -77,11 +77,10 @@ timeSlotSchema.index({ doctorId: 1, date: 1, startTime: 1 }, { unique: true });
 timeSlotSchema.index({ doctorId: 1, isBooked: 1, isCancelled: 1 });
 
 // Validate that endTime is after startTime
-timeSlotSchema.pre('save', function (next) {
+timeSlotSchema.pre('save', function () {
   if (this.startTime >= this.endTime) {
     throw new Error('End time must be after start time');
   }
-  next();
 });
 
 module.exports = mongoose.model('TimeSlot', timeSlotSchema);

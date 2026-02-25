@@ -244,15 +244,19 @@ export const TimeSlotManagement = () => {
                     {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                   </h3>
                   <div className="slot-grid">
-                    {slotsByDate[date].map(slot => (
+                    {slotsByDate[date].map(slot => {
+                      const status = slot.isBooked ? 'booked' : slot.isCancelled ? 'cancelled' : 'available';
+                      return (
                       <div
                         key={slot._id}
-                        className={`slot-card slot-manage ${slot.status === 'booked' ? 'slot-booked' : slot.status === 'cancelled' ? 'slot-cancelled' : 'slot-available'}`}
+                        className={`slot-card slot-manage ${
+                          slot.isBooked ? 'slot-booked' : slot.isCancelled ? 'slot-cancelled' : 'slot-available'
+                        }`}
                       >
                         <span className="slot-time">{formatTime(slot.startTime)}</span>
                         <span className="slot-end">{formatTime(slot.endTime)}</span>
-                        <span className="slot-status" style={{ textTransform: 'capitalize' }}>{slot.status || 'available'}</span>
-                        {slot.status !== 'booked' && slot.status !== 'cancelled' && (
+                        <span className="slot-status" style={{ textTransform: 'capitalize' }}>{status}</span>
+                        {!slot.isBooked && !slot.isCancelled && (
                           <div className="slot-actions">
                             <button
                               onClick={() => handleCancel(slot._id)}
@@ -273,7 +277,8 @@ export const TimeSlotManagement = () => {
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))
